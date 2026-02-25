@@ -18,5 +18,16 @@ include = [
     "src/**/*",
 ]
 
-[dependencies]
+[features]
+default = ["v1_34"]
 
+# Kubernetes versions
+v1_34 = []
+
+[dependencies]
+prost = "0.14.3"
+tonic = "0.14.5"
+tonic-prost = "0.14.5"
+
+[build-dependencies]
+tonic-prost-build = "0.14.5"

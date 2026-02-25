@@ -19,7 +19,7 @@ No equivalent exists for Rust. `kube-dra` aims to fill that gap.
 
 ## Status
 
-- [ ] Proto bindings (tonic-build)
+- [x] Proto bindings (tonic-build)
 - [ ] `DraDriver` trait
 - [ ] `KubeletPlugin` builder (single socket)
 - [ ] `ResourceSlicePublisher`
