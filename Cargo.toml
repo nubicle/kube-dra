@@ -1,0 +1,22 @@
+[package]
+name = "kube-dra"
+version = "0.0.1"
+edition = "2024"
+license = "Apache-2.0"
+rust-version = "1.88.0"
+authors = ["Gaurav Gahlot<me@gauravgahlot.in>"]
+categories = ["api-bindings", "asynchronous"]
+description = "A Rust library for building Kubernetes Dynamic Resource Allocation (DRA) drivers"
+documentation = "https://docs.rs/kube-dra"
+keywords = ["cloud-native", "device-management", "dra", "k8s", "kubernetes"]
+readme = "README.md"
+repository = "https://github.com/nubicle/kube-dra"
+include = [    
+    "Cargo.toml",
+    "LICENSE",
+    "README.md",
+    "src/**/*",
+]
+
+[dependencies]
+
