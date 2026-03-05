@@ -19,17 +19,28 @@ No equivalent exists for Rust. `kube-dra` aims to fill that gap.
 
 ## Status
 
-- [x] Proto bindings (tonic-build)
-- [ ] `DraDriver` trait
-- [ ] `KubeletPlugin` builder (single socket)
-- [ ] `ResourceSlicePublisher`
-- [ ] Mock sensor example
-- [ ] End-to-end example working on a [kind][6] cluster
-- [ ] Rolling update support
+- [x] Proto bindings
+  - [x] DRA v1 and v1beta1
+  - [ ] Plugin registration
+- [ ] Minimal kubelet-visible plugin
+  - [ ] `Endpoint` — Unix socket lifecycle
+  - [ ] `GrpcServer` — non-blocking tonic gRPC server
+  - [ ] `RegistrationServer`
+  - [ ] `NodeRegistrar`
+- [ ] Public API surface
+  - [ ] `DraPlugin` trait, `PrepareResult`, `Device`, `NamespacedObject`
+  - [ ] Error types
+- [ ] Full plugin lifecycle
+  - [ ] `KubeletPluginBuilder` — configuration, start, stop, and rolling update support
+- [ ] DRA handlers
+  - [ ] `NodePrepareResources` and `NodeUnprepareResources`
+- [ ] `ResourceSlice` publishing
+  - [ ] `PublishResources` and `ResourceSlice` controller
+- [ ] End-to-end example on a [kind][6] cluster
 
 ## License
 
-Apache 2.0 licensed. See LICENSE for details.
+Apache 2.0 licensed. See [LICENSE](./LICENSE) for details.
 
 [1]: https://rust-lang.org/
 [2]: https://kubernetes.io/docs/concepts/scheduling-eviction/dynamic-resource-allocation/
