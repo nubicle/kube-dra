@@ -1,0 +1,19 @@
+name: Build 
+
+on: [ push, pull_request ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest 
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build 
+        run: cargo build --verbose
+      - name: Clippy
+        run: |
+          rustup component add clippy
+          cargo clippy --all-targets
+
