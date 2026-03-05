@@ -25,6 +25,8 @@ default = ["v1_34"]
 v1_34 = []
 
 [dependencies]
+anyhow = "1.0.102"
+k8s-openapi = { version = "0.27.0", features = ["v1_34"] }
 prost = "0.14.3"
 tonic = "0.14.5"
 tonic-prost = "0.14.5"

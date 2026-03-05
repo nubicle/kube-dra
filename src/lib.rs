@@ -16,17 +16,17 @@
 //! See the [repository](https://github.com/nubicle/kube-dra) for progress.
 
 #[cfg(feature = "v1_34")]
-pub(crate) mod v1 {
-    include!(concat!(
-        env!("OUT_DIR"),
-        "/k8s.io.kubelet.pkg.apis.dra.v1.rs"
-    ));
-}
+mod v1_34;
+
+use crate::v1_34::driver::DraPlugin;
+use anyhow;
 
 #[cfg(feature = "v1_34")]
-pub(crate) mod v1beta1 {
-    include!(concat!(
-        env!("OUT_DIR"),
-        "/k8s.io.kubelet.pkg.apis.dra.v1beta1.rs"
-    ));
+pub use self::v1_34::*;
+
+async fn test() -> anyhow::Result<()> {
+    let driver = crate::v1_34::driver::Internal::default();
+    driver.prepare_resource_claims().await;
+
+    Ok(())
 }
