@@ -11,7 +11,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build 
-        run: cargo build --verbose
+        run: |
+          apt install -y protobuf-compiler
+          cargo build --verbose
       - name: Clippy
         run: |
           rustup component add clippy
