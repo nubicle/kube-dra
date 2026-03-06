@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest 
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install protoc
         uses: arduino/setup-protoc@v3
         with:
