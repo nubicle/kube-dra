@@ -10,10 +10,12 @@ jobs:
     runs-on: ubuntu-latest 
     steps:
       - uses: actions/checkout@v4
-      - name: Build 
-        run: |
-          apt install -y protobuf-compiler
-          cargo build --verbose
+      - name: Install protoc
+        uses: actions/setup-protoc@v1
+        with:
+          version: '33.1'
+      - name: Build
+        run: cargo build --verbose
       - name: Clippy
         run: |
           rustup component add clippy
