@@ -16,17 +16,25 @@
 //! See the [repository](https://github.com/nubicle/kube-dra) for progress.
 
 #[cfg(feature = "v1_34")]
-pub(crate) mod v1 {
-    include!(concat!(
-        env!("OUT_DIR"),
-        "/k8s.io.kubelet.pkg.apis.dra.v1.rs"
-    ));
+pub(crate) mod dra {
+    pub(crate) mod v1 {
+        include!(concat!(
+            env!("OUT_DIR"),
+            "/k8s.io.kubelet.pkg.apis.dra.v1.rs"
+        ));
+    }
+
+    pub(crate) mod v1beta1 {
+        include!(concat!(
+            env!("OUT_DIR"),
+            "/k8s.io.kubelet.pkg.apis.dra.v1beta1.rs"
+        ));
+    }
 }
 
 #[cfg(feature = "v1_34")]
-pub(crate) mod v1beta1 {
-    include!(concat!(
-        env!("OUT_DIR"),
-        "/k8s.io.kubelet.pkg.apis.dra.v1beta1.rs"
-    ));
+pub(crate) mod plugin_registration {
+    pub(crate) mod v1 {
+        include!(concat!(env!("OUT_DIR"), "/pluginregistration.rs"));
+    }
 }
