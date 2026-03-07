@@ -15,6 +15,8 @@ include = [
     "Cargo.toml",
     "LICENSE",
     "README.md",
+    "build.rs",
+    "proto/**/*",
     "src/**/*",
 ]
 
@@ -25,9 +27,13 @@ default = ["v1_34"]
 v1_34 = []
 
 [dependencies]
+anyhow = "1.0.102"
 prost = "0.14.3"
+tokio = { version = "1.50.0", features = ["macros", "net"] }
 tonic = "0.14.5"
 tonic-prost = "0.14.5"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 [build-dependencies]
 tonic-prost-build = "0.14.5"
