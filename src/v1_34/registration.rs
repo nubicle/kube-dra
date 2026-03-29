@@ -3,7 +3,7 @@ use tonic::{Request, Response};
 use super::dra;
 use super::plugin_registration::v1::{self, registration_server::Registration};
 
-/// DRAPlugin identifier for registered Dynamic Resourc Allocation plugins.
+/// DRAPlugin identifier for registered Dynamic Resource Allocation plugins.
 const PLUGIN_TYPE: &str = "DRAPlugin";
 
 // RegistrationServer implements the kubelet plugin registration gRPC service.

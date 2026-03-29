@@ -1,6 +1,6 @@
 use std::path::{self, PathBuf};
 
-use anyhow::{Ok, anyhow};
+use anyhow::anyhow;
 
 /// KUBELET_PLUGINS_DIR is the default directory for [PluginDataDirectoryPath].
 const KUBELET_PLUGINS_DIR: &str = "/var/lib/kubelet/plugins";
@@ -103,19 +103,17 @@ impl KubeletPluginBuilder {
         let driver_name = self
             .driver_name
             .as_ref()
-            .ok_or_else(|| anyhow!("driver name is required"));
-        let driver_name = driver_name.unwrap();
+            .ok_or_else(|| anyhow!("driver name is required"))?;
 
         let kube_client = self
             .kube_client
             .as_ref()
-            .ok_or_else(|| anyhow!("kubernetes client is required"));
+            .ok_or_else(|| anyhow!("kubernetes client is required"))?;
 
         let node_name = self
             .node_name
             .as_ref()
-            .ok_or_else(|| anyhow!("node name is required"));
-        let node_name = node_name.unwrap();
+            .ok_or_else(|| anyhow!("node name is required"))?;
 
         let plugin_data_dir = if self.plugin_data_dir.is_some() {
             self.plugin_data_dir.clone().unwrap()
@@ -126,7 +124,7 @@ impl KubeletPluginBuilder {
         Ok(KubeletPlugin {
             driver_name: driver_name.to_owned(),
             grpc_verbosity: self.grpc_verbosity.unwrap_or(DEFAULT_GRPC_VERBOSITY),
-            kube_client: kube_client.unwrap().to_owned(),
+            kube_client: kube_client.to_owned(),
             node_name: node_name.to_owned(),
             plugin_data_dir: plugin_data_dir,
         })
