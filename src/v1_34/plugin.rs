@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use tokio_stream::wrappers::UnixListenerStream;
+use tokio_util::sync::CancellationToken;
 
 use super::dra_server::DraServer;
 use super::registration::RegistrationServer;
@@ -22,6 +23,7 @@ const DEFAULT_GRPC_VERBOSITY: i8 = 6;
 pub struct KubeletPlugin {
     dra_server: Arc<DraServer>,
     reg_server: RegistrationServer,
+    cancel_token: Option<CancellationToken>,
 }
 
 impl KubeletPlugin {
@@ -32,19 +34,33 @@ impl KubeletPlugin {
     /// Start sets up all enabled gRPC servers (by default, one for registration,
     /// one for the DRA node client) and implements them by calling a [DRAPlugin]
     /// implementation.
-    pub async fn start(&self) -> anyhow::Result<()> {
+    pub async fn start(&mut self) -> anyhow::Result<()> {
+        self.cancel_token = Some(CancellationToken::new());
         tokio::try_join!(self.start_plugin_server(), self.start_registration_server(),)?;
 
         Ok(())
     }
 
     pub async fn stop(self) -> anyhow::Result<()> {
-        todo!()
+        if let Some(token) = self.cancel_token {
+            token.cancel();
+        }
+
+        tokio::fs::remove_file(self.dra_server.endpoint.path())
+            .await
+            .ok();
+
+        tokio::fs::remove_file(self.reg_server.endpoint.path())
+            .await
+            .ok();
+
+        Ok(())
     }
 
     async fn start_plugin_server(&self) -> anyhow::Result<()> {
         let listener = self.dra_server.endpoint.listen().await?;
         let stream = UnixListenerStream::new(listener);
+        let token = self.cancel_token.as_ref().unwrap().clone();
 
         tonic::transport::Server::builder()
             .add_service(drav1::dra_plugin_server::DraPluginServer::new(
@@ -53,7 +69,7 @@ impl KubeletPlugin {
             .add_service(drav1beta1::dra_plugin_server::DraPluginServer::new(
                 self.dra_server.clone(),
             ))
-            .serve_with_incoming(stream)
+            .serve_with_incoming_shutdown(stream, token.cancelled())
             .await?;
 
         Ok(())
@@ -62,12 +78,13 @@ impl KubeletPlugin {
     async fn start_registration_server(&self) -> anyhow::Result<()> {
         let listener = self.reg_server.endpoint.listen().await?;
         let stream = UnixListenerStream::new(listener);
+        let token = self.cancel_token.as_ref().unwrap().clone();
 
         tonic::transport::Server::builder()
             .add_service(regv1::registration_server::RegistrationServer::new(
                 self.reg_server.clone(),
             ))
-            .serve_with_incoming(stream)
+            .serve_with_incoming_shutdown(stream, token.cancelled())
             .await?;
 
         Ok(())
@@ -193,6 +210,7 @@ impl KubeletPluginBuilder {
                 ),
                 driver_name: driver_name.to_owned(),
             },
+            cancel_token: None,
         })
     }
 }
