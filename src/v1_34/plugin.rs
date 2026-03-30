@@ -1,6 +1,15 @@
 use std::path::{self, PathBuf};
+use std::sync::Arc;
 
 use anyhow::anyhow;
+use tokio_stream::wrappers::UnixListenerStream;
+
+use super::dra_server::DraServer;
+use super::registration::RegistrationServer;
+use crate::endpoint::Endpoint;
+use crate::v1_34::dra::v1 as drav1;
+use crate::v1_34::dra::v1beta1 as drav1beta1;
+use crate::v1_34::plugin_registration::v1 as regv1;
 
 /// KUBELET_PLUGINS_DIR is the default directory for [PluginDataDirectoryPath].
 const KUBELET_PLUGINS_DIR: &str = "/var/lib/kubelet/plugins";
@@ -11,11 +20,8 @@ const KUBELET_REGISTRY_DIR: &str = "/var/lib/kubelet/plugins_registry";
 const DEFAULT_GRPC_VERBOSITY: i8 = 6;
 
 pub struct KubeletPlugin {
-    driver_name: String,
-    grpc_verbosity: i8,
-    kube_client: kube::Client,
-    node_name: String,
-    plugin_data_dir: PathBuf,
+    dra_server: Arc<DraServer>,
+    reg_server: RegistrationServer,
 }
 
 impl KubeletPlugin {
@@ -27,11 +33,44 @@ impl KubeletPlugin {
     /// one for the DRA node client) and implements them by calling a [DRAPlugin]
     /// implementation.
     pub async fn start(&self) -> anyhow::Result<()> {
-        todo!()
+        tokio::try_join!(self.start_plugin_server(), self.start_registration_server(),)?;
+
+        Ok(())
     }
 
     pub async fn stop(self) -> anyhow::Result<()> {
         todo!()
+    }
+
+    async fn start_plugin_server(&self) -> anyhow::Result<()> {
+        let listener = self.dra_server.endpoint.listen().await?;
+        let stream = UnixListenerStream::new(listener);
+
+        tonic::transport::Server::builder()
+            .add_service(drav1::dra_plugin_server::DraPluginServer::new(
+                self.dra_server.clone(),
+            ))
+            .add_service(drav1beta1::dra_plugin_server::DraPluginServer::new(
+                self.dra_server.clone(),
+            ))
+            .serve_with_incoming(stream)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn start_registration_server(&self) -> anyhow::Result<()> {
+        let listener = self.reg_server.endpoint.listen().await?;
+        let stream = UnixListenerStream::new(listener);
+
+        tonic::transport::Server::builder()
+            .add_service(regv1::registration_server::RegistrationServer::new(
+                self.reg_server.clone(),
+            ))
+            .serve_with_incoming(stream)
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -42,6 +81,7 @@ pub struct KubeletPluginBuilder {
     kube_client: Option<kube::Client>,
     node_name: Option<String>,
     plugin_data_dir: Option<PathBuf>,
+    plugin_registration_dir: Option<PathBuf>,
 }
 
 impl KubeletPluginBuilder {
@@ -99,6 +139,19 @@ impl KubeletPluginBuilder {
         self
     }
 
+    /// RegistrarDirectoryPath sets the path to the directory where the kubelet
+    /// expects to find registration sockets of plugins. Typically this is
+    /// `/var/lib/kubelet/plugins_registry` with `/var/lib/kubelet` being the kubelet's
+    /// data directory.
+    ///
+    /// This is also the default. Some Kubernetes clusters may use a different data directory.
+    /// This path must be the same inside and outside of the driver's container.
+    /// The directory must exist.
+    pub fn registrar_directory_path(&mut self, dir: impl Into<PathBuf>) -> &mut Self {
+        self.plugin_registration_dir = Some(dir.into());
+        self
+    }
+
     pub fn build(&mut self) -> anyhow::Result<KubeletPlugin> {
         let driver_name = self
             .driver_name
@@ -115,18 +168,31 @@ impl KubeletPluginBuilder {
             .as_ref()
             .ok_or_else(|| anyhow!("node name is required"))?;
 
-        let plugin_data_dir = if self.plugin_data_dir.is_some() {
-            self.plugin_data_dir.clone().unwrap()
-        } else {
-            PathBuf::from(format!("{KUBELET_PLUGINS_DIR}/{}", driver_name.clone()))
-        };
+        let plugin_data_dir = self
+            .plugin_data_dir
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(format!("{KUBELET_PLUGINS_DIR}/{}", driver_name)));
+
+        let plugin_registration_dir = self
+            .plugin_registration_dir
+            .clone()
+            .unwrap_or(PathBuf::from(KUBELET_REGISTRY_DIR));
 
         Ok(KubeletPlugin {
-            driver_name: driver_name.to_owned(),
-            grpc_verbosity: self.grpc_verbosity.unwrap_or(DEFAULT_GRPC_VERBOSITY),
-            kube_client: kube_client.to_owned(),
-            node_name: node_name.to_owned(),
-            plugin_data_dir: plugin_data_dir,
+            dra_server: Arc::new(DraServer {
+                driver_name: driver_name.to_owned(),
+                grpc_verbosity: self.grpc_verbosity.unwrap_or(DEFAULT_GRPC_VERBOSITY),
+                kube_client: kube_client.to_owned(),
+                node_name: node_name.to_owned(),
+                endpoint: Endpoint::new(plugin_data_dir, "dra.sock"),
+            }),
+            reg_server: RegistrationServer {
+                endpoint: Endpoint::new(
+                    plugin_registration_dir,
+                    format!("{}-reg.sock", driver_name),
+                ),
+                driver_name: driver_name.to_owned(),
+            },
         })
     }
 }
