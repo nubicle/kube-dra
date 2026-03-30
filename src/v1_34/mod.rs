@@ -20,5 +20,6 @@ mod plugin_registration {
     }
 }
 
+mod dra_server;
 pub(super) mod plugin;
 mod registration;
