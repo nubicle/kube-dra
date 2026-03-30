@@ -23,7 +23,7 @@ No equivalent exists for Rust. `kube-dra` aims to fill that gap.
   - [x] DRA v1 and v1beta1
   - [x] Plugin registration
 - [ ] Minimal kubelet-visible plugin
-  - [ ] `Endpoint` — Unix socket lifecycle
+  - [x] `Endpoint` — Unix socket lifecycle
   - [ ] `GrpcServer` — non-blocking tonic gRPC server
   - [ ] `RegistrationServer`
   - [ ] `NodeRegistrar`

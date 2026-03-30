@@ -20,3 +20,5 @@ mod v1_34;
 
 #[cfg(feature = "v1_34")]
 pub use self::v1_34::plugin::*;
+
+mod endpoint;
