@@ -25,6 +25,7 @@ impl regv1::registration_server::Registration for RegistrationServer {
         &self,
         _: Request<regv1::InfoRequest>,
     ) -> Result<Response<regv1::PluginInfo>, tonic::Status> {
+        tracing::info!(driver = %self.driver_name, "GET_INFO called");
         let info = regv1::PluginInfo {
             name: self.driver_name.clone(),
             endpoint: self.dra_endpoint_path.to_string_lossy().to_string(),
@@ -35,6 +36,7 @@ impl regv1::registration_server::Registration for RegistrationServer {
             ],
         };
 
+        tracing::info!(driver = %self.driver_name, "GET_INFO returning response");
         Ok(Response::new(info))
     }
 

@@ -37,8 +37,12 @@ impl KubeletPlugin {
     /// one for the DRA node client) and implements them by calling a [DRAPlugin]
     /// implementation.
     pub async fn start(&mut self) -> anyhow::Result<()> {
+        tracing::info!("binding listeners");
+
         let dra_listener = self.dra_server.endpoint.listen().await?;
         let reg_listener = self.reg_server.endpoint.listen().await?;
+
+        tracing::info!("binding complete, spawning servers");
 
         let token = CancellationToken::new();
         self.cancel_token = Some(token.clone());
@@ -64,6 +68,7 @@ impl KubeletPlugin {
             token.cancel();
         }
 
+        tracing::info!("awaiting servers");
         for handle in self.handles {
             handle.await??;
         }
