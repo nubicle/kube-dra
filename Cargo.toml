@@ -43,3 +43,10 @@ tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
 
 [build-dependencies]
 tonic-prost-build = "0.14.5"
+
+[patch.crates-io]
+# Patch is still needed, using one from upstream PR for now, hosted on a fork of ours to help
+# with supply chain integrity.
+# h2 PR #487 — skip :authority validation for Unix domain sockets
+# Remove once https://github.com/hyperium/h2/pull/487 is merged and released
+h2 = { git = 'https://github.com/nubicle/h2', branch = 'patch-authority'}
