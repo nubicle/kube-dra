@@ -210,21 +210,23 @@ impl KubeletPluginBuilder {
             .clone()
             .unwrap_or(PathBuf::from(KUBELET_REGISTRY_DIR));
 
+        let dra_endpoint = Endpoint::new(plugin_data_dir, "dra.sock");
         Ok(KubeletPlugin {
+            reg_server: RegistrationServer {
+                driver_name: driver_name.to_owned(),
+                endpoint: Endpoint::new(
+                    plugin_registration_dir,
+                    format!("{}-reg.sock", driver_name),
+                ),
+                dra_endpoint_path: dra_endpoint.path(),
+            },
             dra_server: Arc::new(DraServer {
                 driver_name: driver_name.to_owned(),
                 grpc_verbosity: self.grpc_verbosity.unwrap_or(DEFAULT_GRPC_VERBOSITY),
                 kube_client: kube_client.to_owned(),
                 node_name: node_name.to_owned(),
-                endpoint: Endpoint::new(plugin_data_dir, "dra.sock"),
+                endpoint: dra_endpoint,
             }),
-            reg_server: RegistrationServer {
-                endpoint: Endpoint::new(
-                    plugin_registration_dir,
-                    format!("{}-reg.sock", driver_name),
-                ),
-                driver_name: driver_name.to_owned(),
-            },
             cancel_token: None,
             handles: Vec::default(),
         })

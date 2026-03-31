@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use tonic::{Request, Response};
 
 use crate::endpoint::Endpoint;
@@ -13,6 +15,7 @@ const PLUGIN_TYPE: &str = "DRAPlugin";
 pub(super) struct RegistrationServer {
     pub(super) driver_name: String,
     pub(super) endpoint: Endpoint,
+    pub(super) dra_endpoint_path: PathBuf,
 }
 
 #[tonic::async_trait]
@@ -24,7 +27,7 @@ impl regv1::registration_server::Registration for RegistrationServer {
     ) -> Result<Response<regv1::PluginInfo>, tonic::Status> {
         let info = regv1::PluginInfo {
             name: self.driver_name.clone(),
-            endpoint: self.endpoint.path().to_string_lossy().to_string(),
+            endpoint: self.dra_endpoint_path.to_string_lossy().to_string(),
             r#type: String::from(PLUGIN_TYPE),
             supported_versions: vec![
                 short_service_name(drav1::dra_plugin_server::SERVICE_NAME),
