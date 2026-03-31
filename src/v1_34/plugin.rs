@@ -24,6 +24,7 @@ pub struct KubeletPlugin {
     dra_server: Arc<DraServer>,
     reg_server: RegistrationServer,
     cancel_token: Option<CancellationToken>,
+    handles: Vec<tokio::task::JoinHandle<anyhow::Result<()>>>,
 }
 
 impl KubeletPlugin {
@@ -35,8 +36,16 @@ impl KubeletPlugin {
     /// one for the DRA node client) and implements them by calling a [DRAPlugin]
     /// implementation.
     pub async fn start(&mut self) -> anyhow::Result<()> {
-        self.cancel_token = Some(CancellationToken::new());
-        tokio::try_join!(self.start_plugin_server(), self.start_registration_server(),)?;
+        let token = CancellationToken::new();
+        self.cancel_token = Some(token.clone());
+
+        let dra_handle = tokio::spawn(start_plugin_server(self.dra_server.clone(), token.clone()));
+        let reg_handle = tokio::spawn(start_registration_server(
+            self.reg_server.clone(),
+            token.clone(),
+        ));
+
+        self.handles = vec![dra_handle, reg_handle];
 
         Ok(())
     }
@@ -44,6 +53,10 @@ impl KubeletPlugin {
     pub async fn stop(self) -> anyhow::Result<()> {
         if let Some(token) = self.cancel_token {
             token.cancel();
+        }
+
+        for handle in self.handles {
+            handle.await??;
         }
 
         tokio::fs::remove_file(self.dra_server.endpoint.path())
@@ -56,39 +69,41 @@ impl KubeletPlugin {
 
         Ok(())
     }
+}
 
-    async fn start_plugin_server(&self) -> anyhow::Result<()> {
-        let listener = self.dra_server.endpoint.listen().await?;
-        let stream = UnixListenerStream::new(listener);
-        let token = self.cancel_token.as_ref().unwrap().clone();
+async fn start_plugin_server(
+    server: Arc<DraServer>,
+    token: CancellationToken,
+) -> anyhow::Result<()> {
+    let listener = server.endpoint.listen().await?;
+    let stream = UnixListenerStream::new(listener);
 
-        tonic::transport::Server::builder()
-            .add_service(drav1::dra_plugin_server::DraPluginServer::new(
-                self.dra_server.clone(),
-            ))
-            .add_service(drav1beta1::dra_plugin_server::DraPluginServer::new(
-                self.dra_server.clone(),
-            ))
-            .serve_with_incoming_shutdown(stream, token.cancelled())
-            .await?;
+    tonic::transport::Server::builder()
+        .add_service(drav1::dra_plugin_server::DraPluginServer::new(
+            server.clone(),
+        ))
+        .add_service(drav1beta1::dra_plugin_server::DraPluginServer::new(
+            server.clone(),
+        ))
+        .serve_with_incoming_shutdown(stream, token.cancelled())
+        .await?;
 
-        Ok(())
-    }
+    Ok(())
+}
 
-    async fn start_registration_server(&self) -> anyhow::Result<()> {
-        let listener = self.reg_server.endpoint.listen().await?;
-        let stream = UnixListenerStream::new(listener);
-        let token = self.cancel_token.as_ref().unwrap().clone();
+async fn start_registration_server(
+    server: RegistrationServer,
+    token: CancellationToken,
+) -> anyhow::Result<()> {
+    let listener = server.endpoint.listen().await?;
+    let stream = UnixListenerStream::new(listener);
 
-        tonic::transport::Server::builder()
-            .add_service(regv1::registration_server::RegistrationServer::new(
-                self.reg_server.clone(),
-            ))
-            .serve_with_incoming_shutdown(stream, token.cancelled())
-            .await?;
+    tonic::transport::Server::builder()
+        .add_service(regv1::registration_server::RegistrationServer::new(server))
+        .serve_with_incoming_shutdown(stream, token.cancelled())
+        .await?;
 
-        Ok(())
-    }
+    Ok(())
 }
 
 #[derive(Default)]
@@ -211,6 +226,7 @@ impl KubeletPluginBuilder {
                 driver_name: driver_name.to_owned(),
             },
             cancel_token: None,
+            handles: Vec::default(),
         })
     }
 }
