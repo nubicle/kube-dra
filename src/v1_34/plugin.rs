@@ -2,6 +2,7 @@ use std::path::{self, PathBuf};
 use std::sync::Arc;
 
 use anyhow::anyhow;
+use tokio::net::UnixListener;
 use tokio_stream::wrappers::UnixListenerStream;
 use tokio_util::sync::CancellationToken;
 
@@ -36,12 +37,20 @@ impl KubeletPlugin {
     /// one for the DRA node client) and implements them by calling a [DRAPlugin]
     /// implementation.
     pub async fn start(&mut self) -> anyhow::Result<()> {
+        let dra_listener = self.dra_server.endpoint.listen().await?;
+        let reg_listener = self.reg_server.endpoint.listen().await?;
+
         let token = CancellationToken::new();
         self.cancel_token = Some(token.clone());
 
-        let dra_handle = tokio::spawn(start_plugin_server(self.dra_server.clone(), token.clone()));
+        let dra_handle = tokio::spawn(start_plugin_server(
+            self.dra_server.clone(),
+            dra_listener,
+            token.clone(),
+        ));
         let reg_handle = tokio::spawn(start_registration_server(
             self.reg_server.clone(),
+            reg_listener,
             token.clone(),
         ));
 
@@ -73,11 +82,9 @@ impl KubeletPlugin {
 
 async fn start_plugin_server(
     server: Arc<DraServer>,
+    listener: UnixListener,
     token: CancellationToken,
 ) -> anyhow::Result<()> {
-    let listener = server.endpoint.listen().await?;
-    let stream = UnixListenerStream::new(listener);
-
     tonic::transport::Server::builder()
         .add_service(drav1::dra_plugin_server::DraPluginServer::new(
             server.clone(),
@@ -85,7 +92,7 @@ async fn start_plugin_server(
         .add_service(drav1beta1::dra_plugin_server::DraPluginServer::new(
             server.clone(),
         ))
-        .serve_with_incoming_shutdown(stream, token.cancelled())
+        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), token.cancelled())
         .await?;
 
     Ok(())
@@ -93,14 +100,12 @@ async fn start_plugin_server(
 
 async fn start_registration_server(
     server: RegistrationServer,
+    listener: UnixListener,
     token: CancellationToken,
 ) -> anyhow::Result<()> {
-    let listener = server.endpoint.listen().await?;
-    let stream = UnixListenerStream::new(listener);
-
     tonic::transport::Server::builder()
         .add_service(regv1::registration_server::RegistrationServer::new(server))
-        .serve_with_incoming_shutdown(stream, token.cancelled())
+        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), token.cancelled())
         .await?;
 
     Ok(())
