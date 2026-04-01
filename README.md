@@ -32,7 +32,7 @@ No equivalent exists for Rust. `kube-dra` aims to fill that gap.
   - [ ] Error types
 - [ ] Full plugin lifecycle - `KubeletPluginBuilder`
   - [x] Configuration
-  - [x] Start, and stop,
+  - [x] Start and stop
   - [ ] Rolling update support
 - [ ] DRA handlers
   - [ ] `NodePrepareResources` and `NodeUnprepareResources`

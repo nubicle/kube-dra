@@ -72,8 +72,17 @@ impl KubeletPlugin {
             handle.await??;
         }
 
-        tokio::fs::remove_file(self.dra_server.endpoint.path()).await?;
-        tokio::fs::remove_file(self.reg_server.endpoint.path()).await?;
+        if let Err(err) = tokio::fs::remove_file(self.dra_server.endpoint.path()).await {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                return Err(err.into());
+            }
+        }
+
+        if let Err(err) = tokio::fs::remove_file(self.reg_server.endpoint.path()).await {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                return Err(err.into());
+            }
+        }
 
         Ok(())
     }
