@@ -5,16 +5,17 @@ use tokio::net::UnixListener;
 // Endpoint defines where and how to listen for incoming connections.
 // A listener for a Unix domain socket gets created at the path.
 // The listener always gets closed when shutting down.
+#[derive(Clone)]
 pub(crate) struct Endpoint {
     dir: PathBuf,
     file: String,
 }
 
 impl Endpoint {
-    pub(crate) fn new(dir: impl Into<PathBuf>, file: &str) -> Self {
+    pub(crate) fn new(dir: impl Into<PathBuf>, file: impl Into<String>) -> Self {
         Endpoint {
             dir: dir.into(),
-            file: file.to_string(),
+            file: file.into(),
         }
     }
 
