@@ -37,6 +37,10 @@ impl KubeletPlugin {
     /// one for the DRA node client) and implements them by calling a [DRAPlugin]
     /// implementation.
     pub async fn start(&mut self) -> anyhow::Result<()> {
+        if self.cancel_token.is_some() {
+            return Err(anyhow!("plugin already started"));
+        }
+
         let dra_listener = self.dra_server.endpoint.listen().await?;
         let reg_listener = self.reg_server.endpoint.listen().await?;
 
@@ -68,13 +72,8 @@ impl KubeletPlugin {
             handle.await??;
         }
 
-        tokio::fs::remove_file(self.dra_server.endpoint.path())
-            .await
-            .ok();
-
-        tokio::fs::remove_file(self.reg_server.endpoint.path())
-            .await
-            .ok();
+        tokio::fs::remove_file(self.dra_server.endpoint.path()).await?;
+        tokio::fs::remove_file(self.reg_server.endpoint.path()).await?;
 
         Ok(())
     }
