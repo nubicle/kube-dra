@@ -8,7 +8,7 @@ documentation.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 description = "API version negotiation client for Kubernetes Dynamic Resource Allocation (DRA)"
-include = [    
+include = [
     "Cargo.toml",
     "src/**/*",
 ]

@@ -39,7 +39,7 @@ default = ["v1_34"]
 v1_34 = ["kubelet-plugin/v1_34"]
 
 [dependencies]
-kubelet-plugin = { path = "kubelet-plugin" }
+kubelet-plugin = { path = "kubelet-plugin", default-features = false }
 
 [patch.crates-io]
 # Patch is still needed, using one from upstream PR for now, hosted on a fork of ours to help

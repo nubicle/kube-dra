@@ -8,11 +8,10 @@ documentation.workspace = true
 repository.workspace = true
 rust-version.workspace = true
 description = "Kubelet plugin framework for Kubernetes Dynamic Resource Allocation (DRA) drivers"
-include = [    
+include = [
     "Cargo.toml",
     "build.rs",
     "src/**/*",
-    "../proto/**/*",
 ]
 
 [features]
