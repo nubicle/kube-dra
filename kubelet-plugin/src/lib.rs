@@ -1,14 +1,12 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+//! Kubelet plugin framework for Kubernetes Dynamic Resource Allocation (DRA) drivers.
+//!
+//! This crate handles the plumbing — socket registration, gRPC lifecycle,
+//! and connection monitoring — so you can focus on your driver logic.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[cfg(feature = "v1_34")]
+mod v1_34;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+#[cfg(feature = "v1_34")]
+pub use self::v1_34::plugin::*;
+
+mod endpoint;

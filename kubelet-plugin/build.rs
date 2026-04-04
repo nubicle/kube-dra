@@ -5,11 +5,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .build_client(false)
             .compile_protos(
                 &[
-                    "proto/v1_34/dra/v1/api.proto",
-                    "proto/v1_34/dra/v1beta1/api.proto",
-                    "proto/v1_34/plugin_registration/v1/api.proto",
+                    "../proto/v1_34/dra/v1/api.proto",
+                    "../proto/v1_34/dra/v1beta1/api.proto",
+                    "../proto/v1_34/plugin_registration/v1/api.proto",
                 ],
-                &["proto/v1_34", "proto/vendor"],
+                &["../proto/v1_34", "../proto/vendor"],
             )?;
 
         return Ok(());
