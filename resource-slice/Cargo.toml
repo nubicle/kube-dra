@@ -1,0 +1,14 @@
+[package]
+name = "resource-slice"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+documentation.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "ResourceSlice controller for Kubernetes Dynamic Resource Allocation (DRA)"
+include = [
+    "Cargo.toml",
+    "src/**/*",
+]

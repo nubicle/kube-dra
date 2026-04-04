@@ -1,9 +1,17 @@
-[package]
-name = "kube-dra"
+[workspace]
+resolver = "2"
+members = [
+    ".",
+    "client",
+    "resource-slice",
+    "kubelet-plugin",
+]
+
+[workspace.package]
 version = "0.0.1"
 edition = "2024"
 license = "Apache-2.0"
-rust-version = "1.88.0"
+rust-version = "1.88"
 authors = ["Gaurav Gahlot<me@gauravgahlot.in>"]
 categories = ["api-bindings", "asynchronous"]
 description = "A Rust library for building Kubernetes Dynamic Resource Allocation (DRA) drivers"
@@ -11,42 +19,31 @@ documentation = "https://docs.rs/kube-dra"
 keywords = ["cloud-native", "device-management", "dra", "k8s", "kubernetes"]
 readme = "README.md"
 repository = "https://github.com/nubicle/kube-dra"
-include = [    
-    "Cargo.toml",
-    "LICENSE",
-    "README.md",
-    "build.rs",
-    "proto/**/*",
-    "src/**/*",
-]
+
+[package]
+name = "kube-dra"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+documentation.workspace = true
+keywords.workspace = true
+readme.workspace = true
+repository.workspace = true
 
 [features]
 default = ["v1_34"]
-
-# Kubernetes versions
-v1_34 = []
+v1_34 = ["kubelet-plugin/v1_34"]
 
 [dependencies]
-anyhow = "1.0.102"
-k8s-openapi = { version = "0.27.1", features = ["v1_34"] }
-kube = { version = "3.1.0", features = ["derive"] }
-prost = "0.14.3"
-tokio = { version = "1.50.0", features = ["fs", "macros", "net"] }
-tokio-stream = { version = "0.1.18", features = ["net"] }
-tokio-util = "0.7.18"
-tonic = "0.14.5"
-tonic-prost = "0.14.5"
-tracing = "0.1.44"
-
-[dev-dependencies]
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
-
-[build-dependencies]
-tonic-prost-build = "0.14.5"
+kubelet-plugin = { path = "kubelet-plugin", default-features = false }
 
 [patch.crates-io]
 # Patch is still needed, using one from upstream PR for now, hosted on a fork of ours to help
 # with supply chain integrity.
 # h2 PR #487 — skip :authority validation for Unix domain sockets
 # Remove once https://github.com/hyperium/h2/pull/487 is merged and released
-h2 = { git = 'https://github.com/nubicle/h2', branch = 'patch-authority'}
+h2 = { git = 'https://github.com/nubicle/h2', branch = 'patch-authority' }
