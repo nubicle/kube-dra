@@ -20,6 +20,11 @@ update-proto version=latest:
         exit 1
     fi
   
+    # fetch descriptor.proto (transitively required by gogo.proto)
+    mkdir -p proto/vendor/google/protobuf
+    curl -sSL -o proto/vendor/google/protobuf/descriptor.proto \
+        https://raw.githubusercontent.com/protocolbuffers/protobuf/main/src/google/protobuf/descriptor.proto
+
     # fetch gogo.proto (required by all Kubernetes protos)
     mkdir -p proto/vendor/github.com/gogo/protobuf/gogoproto
     curl -sSL -o proto/vendor/github.com/gogo/protobuf/gogoproto/gogo.proto \
