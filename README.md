@@ -32,6 +32,11 @@ kube-dra/
 A DRA driver depends on `kubeletplugin`, implements the `DraPlugin`
 trait, and the library handles everything else.
 
+## Example
+
+[`kube-dra-example-driver`][6] is a reference DRA driver built on `kube-dra`,
+packaged with a Helm chart and a one-command kind setup.
+
 ## Out of scope (driver responsibility)
 
 - Device discovery and enumeration
@@ -49,3 +54,4 @@ Apache 2.0 licensed. See [LICENSE](./LICENSE) for details.
 [3]: https://kubernetes.io/blog/2025/09/01/kubernetes-v1-34-dra-updates/
 [4]: https://kubernetes.io
 [5]: https://github.com/kubernetes/dynamic-resource-allocation/tree/master/kubeletplugin
+[6]: https://github.com/nubicle/kube-dra-example-driver

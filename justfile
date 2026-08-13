@@ -4,6 +4,11 @@ reg  := "staging/src/k8s.io/kubelet/pkg/apis/pluginregistration/v1/api.proto"
 
 latest := "1.34"
 
+# List the available recipes (runs when `just` is invoked with no target).
+_default:
+    @just --list
+
+# Fetch the DRA and plugin-registration protos (and vendored deps) for a K8s version.
 update-proto version=latest:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -25,14 +30,16 @@ update-proto version=latest:
     curl -sSL -o proto/vendor/google/protobuf/descriptor.proto \
         https://raw.githubusercontent.com/protocolbuffers/protobuf/main/src/google/protobuf/descriptor.proto
 
-    # fetch gogo.proto (required by all Kubernetes protos)
+    # fetch gogo.proto (required by all K8s protos)
     mkdir -p proto/vendor/github.com/gogo/protobuf/gogoproto
     curl -sSL -o proto/vendor/github.com/gogo/protobuf/gogoproto/gogo.proto \
         https://raw.githubusercontent.com/gogo/protobuf/master/gogoproto/gogo.proto
 
+# Fetch protos for every supported K8s version.
 update-all-proto:
     just update-proto 1.34
 
+# Fetch all protos, then build the workspace.
 bootstrap:
     just update-all-proto 
     cargo build
