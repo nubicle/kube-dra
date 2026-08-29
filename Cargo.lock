@@ -255,7 +255,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -397,8 +397,8 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.13"
-source = "git+https://github.com/nubicle/h2?branch=patch-authority#5c2f3ab302e6430d86ce6a612438d5e13155074e"
+version = "0.4.19"
+source = "git+https://github.com/nubicle/h2?branch=patch-authority#235fe6774e452a20e44ac18d2315703b83151ef6"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1168,7 +1168,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1470,7 +1470,7 @@ dependencies = [
  "getrandom 0.4.1",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
