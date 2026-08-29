@@ -21,5 +21,5 @@ mod plugin_registration {
 }
 
 mod dra_server;
-pub(super) mod plugin;
+pub(super) mod kubelet_plugin;
 mod registration;

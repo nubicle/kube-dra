@@ -7,6 +7,6 @@
 mod v1_34;
 
 #[cfg(feature = "v1_34")]
-pub use self::v1_34::plugin::*;
+pub use self::v1_34::kubelet_plugin::*;
 
 mod endpoint;
