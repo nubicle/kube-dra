@@ -24,12 +24,12 @@ The workspace mirrors the Go module structure:
 
 ```
 kube-dra/
-  client/            Negotiates API versions with the cluster
-  resourceslice/     Watches and reconciles ResourceSlice objects
-  kubeletplugin/     Kubelet plugin registration, gRPC servers, device preparation
+  client/             Negotiates API versions with the cluster
+  resource-slice/     Watches and reconciles ResourceSlice objects
+  kubelet-plugin/     Kubelet plugin registration, gRPC servers, device preparation
 ```
 
-A DRA driver depends on `kubeletplugin`, implements the `DraPlugin`
+A DRA driver depends on `kube-dra`, implements the [`DraDriver`][7]
 trait, and the library handles everything else.
 
 ## Example
@@ -55,3 +55,4 @@ Apache 2.0 licensed. See [LICENSE](./LICENSE) for details.
 [4]: https://kubernetes.io
 [5]: https://github.com/kubernetes/dynamic-resource-allocation/tree/master/kubeletplugin
 [6]: https://github.com/nubicle/kube-dra-example-driver
+[7]: kubelet-plugin/src/dra_driver.rs

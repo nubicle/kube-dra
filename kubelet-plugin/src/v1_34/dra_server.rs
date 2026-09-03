@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use crate::endpoint::Endpoint;
+use crate::DraDriver;
 use crate::v1_34::dra::v1 as drav1;
 use crate::v1_34::dra::v1beta1 as drav1beta1;
 
 // DraServer implements the DraPlugin gRPC service.
 pub(super) struct DraServer {
+    pub(super) driver: Box<dyn DraDriver>,
     pub(super) driver_name: String,
     pub(super) grpc_verbosity: i8,
     pub(super) kube_client: kube::Client,
     pub(super) node_name: String,
-    pub(super) endpoint: Endpoint,
 }
 
 #[tonic::async_trait]

@@ -8,21 +8,31 @@ use tokio_util::sync::CancellationToken;
 
 use super::dra_server::DraServer;
 use super::registration::RegistrationServer;
+use crate::dra_driver::DraDriver;
 use crate::endpoint::Endpoint;
 use crate::v1_34::dra::v1 as drav1;
 use crate::v1_34::dra::v1beta1 as drav1beta1;
 use crate::v1_34::plugin_registration::v1 as regv1;
 
-/// KUBELET_PLUGINS_DIR is the default directory for [PluginDataDirectoryPath].
+/// KUBELET_PLUGINS_DIR is the default directory for `PluginDataDirectoryPath`.
 const KUBELET_PLUGINS_DIR: &str = "/var/lib/kubelet/plugins";
 
-/// KUBELET_REGISTRY_DIR is the default for [RegistrarDirectoryPath]
+/// KUBELET_REGISTRY_DIR is the default for `RegistrarDirectoryPath`.
 const KUBELET_REGISTRY_DIR: &str = "/var/lib/kubelet/plugins_registry";
 
+/// DEFAULT_GRPC_VERBOSITY logs each gRPC call and its response.
+/// A negative value disables logging.
 const DEFAULT_GRPC_VERBOSITY: i8 = 6;
 
+/// `KubeletPlugin` is the node-local component the kubelet talks to: it owns the
+/// registration and DRA gRPC servers and their sockets, and serves kubelet's calls
+/// by delegating to the [`DraDriver`] handed to [`KubeletPlugin::start`].
 pub struct KubeletPlugin {
-    dra_server: Arc<DraServer>,
+    driver_name: String,
+    grpc_verbosity: i8,
+    kube_client: kube::Client,
+    node_name: String,
+    endpoint: Endpoint,
     reg_server: RegistrationServer,
     cancel_token: Option<CancellationToken>,
     handles: Vec<tokio::task::JoinHandle<anyhow::Result<()>>>,
@@ -34,24 +44,28 @@ impl KubeletPlugin {
     }
 
     /// Start sets up all enabled gRPC servers (by default, one for registration,
-    /// one for the DRA node client) and implements them by calling a [DRAPlugin]
+    /// one for the DRA node client) and implements them by calling a [DraDriver]
     /// implementation.
-    pub async fn start(&mut self) -> anyhow::Result<()> {
+    pub async fn start(&mut self, driver: Box<dyn DraDriver>) -> anyhow::Result<()> {
         if self.cancel_token.is_some() {
             return Err(anyhow!("plugin already started"));
         }
 
-        let dra_listener = self.dra_server.endpoint.listen().await?;
+        let dra_server = DraServer {
+            driver_name: self.driver_name.clone(),
+            grpc_verbosity: self.grpc_verbosity,
+            kube_client: self.kube_client.clone(),
+            node_name: self.node_name.clone(),
+            driver,
+        };
+
+        let dra_listener = self.endpoint.listen().await?;
         let reg_listener = self.reg_server.endpoint.listen().await?;
 
         let token = CancellationToken::new();
         self.cancel_token = Some(token.clone());
 
-        let dra_handle = tokio::spawn(start_plugin_server(
-            self.dra_server.clone(),
-            dra_listener,
-            token.clone(),
-        ));
+        let dra_handle = tokio::spawn(start_plugin_server(dra_server, dra_listener, token.clone()));
         let reg_handle = tokio::spawn(start_registration_server(
             self.reg_server.clone(),
             reg_listener,
@@ -72,7 +86,7 @@ impl KubeletPlugin {
             handle.await??;
         }
 
-        if let Err(err) = tokio::fs::remove_file(self.dra_server.endpoint.path()).await {
+        if let Err(err) = tokio::fs::remove_file(self.endpoint.path()).await {
             if err.kind() != std::io::ErrorKind::NotFound {
                 return Err(err.into());
             }
@@ -89,10 +103,12 @@ impl KubeletPlugin {
 }
 
 async fn start_plugin_server(
-    server: Arc<DraServer>,
+    server: DraServer,
     listener: UnixListener,
     token: CancellationToken,
 ) -> anyhow::Result<()> {
+    let server = Arc::new(server);
+
     tonic::transport::Server::builder()
         .add_service(drav1::dra_plugin_server::DraPluginServer::new(
             server.clone(),
@@ -119,6 +135,9 @@ async fn start_registration_server(
     Ok(())
 }
 
+/// Builds a [`KubeletPlugin`]. `driver_name`, `kube_client` and `node_name` are
+/// required; the socket directories and gRPC verbosity fall back to the kubelet's
+/// conventional defaults. Obtain one with [`KubeletPlugin::builder`].
 #[derive(Default)]
 pub struct KubeletPluginBuilder {
     driver_name: Option<String>,
@@ -233,13 +252,11 @@ impl KubeletPluginBuilder {
                 ),
                 dra_endpoint_path: dra_endpoint.path(),
             },
-            dra_server: Arc::new(DraServer {
-                driver_name: driver_name.to_owned(),
-                grpc_verbosity: self.grpc_verbosity.unwrap_or(DEFAULT_GRPC_VERBOSITY),
-                kube_client: kube_client.to_owned(),
-                node_name: node_name.to_owned(),
-                endpoint: dra_endpoint,
-            }),
+            driver_name: driver_name.to_owned(),
+            grpc_verbosity: self.grpc_verbosity.unwrap_or(DEFAULT_GRPC_VERBOSITY),
+            kube_client: kube_client.to_owned(),
+            node_name: node_name.to_owned(),
+            endpoint: dra_endpoint,
             cancel_token: None,
             handles: Vec::default(),
         })

@@ -20,6 +20,7 @@ mod plugin_registration {
     }
 }
 
-mod dra_server;
 pub(super) mod kubelet_plugin;
+
+mod dra_server;
 mod registration;
