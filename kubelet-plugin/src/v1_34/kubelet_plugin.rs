@@ -3,8 +3,10 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use tokio::net::UnixListener;
+use tokio::task::JoinSet;
 use tokio_stream::wrappers::UnixListenerStream;
 use tokio_util::sync::CancellationToken;
+use tonic::{service::Routes, transport};
 
 use super::dra_server::DraServer;
 use super::registration::RegistrationServer;
@@ -32,10 +34,12 @@ pub struct KubeletPlugin {
     grpc_verbosity: i8,
     kube_client: kube::Client,
     node_name: String,
+    node_v1: bool,
+    node_v1beta1: bool,
     endpoint: Endpoint,
     reg_server: RegistrationServer,
     cancel_token: Option<CancellationToken>,
-    handles: Vec<tokio::task::JoinHandle<anyhow::Result<()>>>,
+    handles: JoinSet<()>,
 }
 
 impl KubeletPlugin {
@@ -46,33 +50,60 @@ impl KubeletPlugin {
     /// Start sets up all enabled gRPC servers (by default, one for registration,
     /// one for the DRA node client) and implements them by calling a [DraDriver]
     /// implementation.
-    pub async fn start(&mut self, driver: Box<dyn DraDriver>) -> anyhow::Result<()> {
+    pub async fn start(&mut self, driver: Arc<dyn DraDriver>) -> anyhow::Result<()> {
         if self.cancel_token.is_some() {
             return Err(anyhow!("plugin already started"));
         }
 
-        let dra_server = DraServer {
-            driver_name: self.driver_name.clone(),
-            grpc_verbosity: self.grpc_verbosity,
-            kube_client: self.kube_client.clone(),
-            node_name: self.node_name.clone(),
-            driver,
-        };
-
         let dra_listener = self.endpoint.listen().await?;
         let reg_listener = self.reg_server.endpoint.listen().await?;
-
         let token = CancellationToken::new();
         self.cancel_token = Some(token.clone());
 
-        let dra_handle = tokio::spawn(start_plugin_server(dra_server, dra_listener, token.clone()));
-        let reg_handle = tokio::spawn(start_registration_server(
-            self.reg_server.clone(),
-            reg_listener,
+        let dra_server = Arc::new(DraServer {
+            driver_name: self.driver_name.clone(),
+            kube_client: self.kube_client.clone(),
+            node_name: self.node_name.clone(),
+            driver: driver.clone(),
+        });
+
+        let mut dra_routes = Routes::builder();
+        if self.node_v1 {
+            dra_routes.add_service(drav1::dra_plugin_server::DraPluginServer::new(
+                dra_server.clone(),
+            ));
+        }
+
+        if self.node_v1beta1 {
+            dra_routes.add_service(drav1beta1::dra_plugin_server::DraPluginServer::new(
+                dra_server.clone(),
+            ));
+        }
+
+        let dc = Arc::clone(&driver);
+        self.handles.spawn(start_grpc_server(
+            self.grpc_verbosity,
+            dra_listener,
             token.clone(),
+            dra_routes.routes(),
+            move |e| async move {
+                dc.handle_error(crate::Error::DraServer(e)).await;
+            },
         ));
 
-        self.handles = vec![dra_handle, reg_handle];
+        let reg_routes = Routes::default().add_service(
+            regv1::registration_server::RegistrationServer::new(self.reg_server.clone()),
+        );
+
+        self.handles.spawn(start_grpc_server(
+            self.grpc_verbosity,
+            reg_listener,
+            token.clone(),
+            reg_routes,
+            move |e| async move {
+                driver.handle_error(crate::Error::Registration(e)).await;
+            },
+        ));
 
         Ok(())
     }
@@ -82,57 +113,47 @@ impl KubeletPlugin {
             token.cancel();
         }
 
-        for handle in self.handles {
-            handle.await??;
-        }
-
-        if let Err(err) = tokio::fs::remove_file(self.endpoint.path()).await {
-            if err.kind() != std::io::ErrorKind::NotFound {
-                return Err(err.into());
+        let mut handles = self.handles;
+        while let Some(res) = handles.join_next().await {
+            if let Err(e) = res {
+                tracing::error!(%e, "server task did not shut down cleanly");
             }
         }
 
-        if let Err(err) = tokio::fs::remove_file(self.reg_server.endpoint.path()).await {
-            if err.kind() != std::io::ErrorKind::NotFound {
-                return Err(err.into());
-            }
-        }
+        let rm_dra = remove_socket(&self.endpoint.path()).await;
+        let rm_reg = remove_socket(&self.reg_server.endpoint.path()).await;
+        rm_dra?;
+        rm_reg?;
 
         Ok(())
     }
 }
 
-async fn start_plugin_server(
-    server: DraServer,
-    listener: UnixListener,
-    token: CancellationToken,
-) -> anyhow::Result<()> {
-    let server = Arc::new(server);
-
-    tonic::transport::Server::builder()
-        .add_service(drav1::dra_plugin_server::DraPluginServer::new(
-            server.clone(),
-        ))
-        .add_service(drav1beta1::dra_plugin_server::DraPluginServer::new(
-            server.clone(),
-        ))
-        .serve_with_incoming_shutdown(UnixListenerStream::new(listener), token.cancelled())
-        .await?;
-
-    Ok(())
+async fn remove_socket(path: &path::Path) -> anyhow::Result<()> {
+    match tokio::fs::remove_file(path).await {
+        Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err.into()),
+        _ => Ok(()),
+    }
 }
 
-async fn start_registration_server(
-    server: RegistrationServer,
+async fn start_grpc_server<F, Fut>(
+    #[allow(unused_variables)] grpc_verbosity: i8,
     listener: UnixListener,
     token: CancellationToken,
-) -> anyhow::Result<()> {
-    tonic::transport::Server::builder()
-        .add_service(regv1::registration_server::RegistrationServer::new(server))
+    routes: Routes,
+    on_error: F,
+) where
+    F: FnOnce(transport::Error) -> Fut + Send + 'static,
+    Fut: Future<Output = ()> + Send,
+{
+    let res = transport::Server::builder()
+        .add_routes(routes)
         .serve_with_incoming_shutdown(UnixListenerStream::new(listener), token.cancelled())
-        .await?;
+        .await;
 
-    Ok(())
+    if let Err(e) = res {
+        on_error(e).await;
+    }
 }
 
 /// Builds a [`KubeletPlugin`]. `driver_name`, `kube_client` and `node_name` are
@@ -144,6 +165,8 @@ pub struct KubeletPluginBuilder {
     grpc_verbosity: Option<i8>,
     kube_client: Option<kube::Client>,
     node_name: Option<String>,
+    node_v1: Option<bool>,
+    node_v1beta1: Option<bool>,
     plugin_data_dir: Option<PathBuf>,
     plugin_registration_dir: Option<PathBuf>,
 }
@@ -216,7 +239,37 @@ impl KubeletPluginBuilder {
         self
     }
 
+    /// `node_v1` explicitly chooses whether the DRA gRPC API v1
+    /// gets enabled. True by default.
+    ///
+    /// This is used in Kubernetes for end-to-end testing. The default should
+    /// be fine for DRA drivers.
+    pub fn node_v1(&mut self, enabled: bool) -> &mut Self {
+        self.node_v1 = Some(enabled);
+        self
+    }
+
+    /// `node_v1beta1` explicitly chooses whether the DRA gRPC API v1beta1
+    /// gets enabled. True by default.
+    ///
+    /// This is used in Kubernetes for end-to-end testing. The default should
+    /// be fine for DRA drivers.
+    pub fn node_v1beta1(&mut self, enabled: bool) -> &mut Self {
+        self.node_v1beta1 = Some(enabled);
+        self
+    }
+
     pub fn build(&mut self) -> anyhow::Result<KubeletPlugin> {
+        let node_v1 = self.node_v1.unwrap_or(true);
+        let node_v1beta1 = self.node_v1beta1.unwrap_or(true);
+
+        let supported_versions = supported_versions(node_v1, node_v1beta1);
+        if supported_versions.is_empty() {
+            return Err(anyhow!(
+                "no supported DRA gRPC API is implemented and enabled"
+            ));
+        }
+
         let driver_name = self
             .driver_name
             .as_ref()
@@ -243,22 +296,61 @@ impl KubeletPluginBuilder {
             .unwrap_or(PathBuf::from(KUBELET_REGISTRY_DIR));
 
         let dra_endpoint = Endpoint::new(plugin_data_dir, "dra.sock");
+        let reg_server = RegistrationServer {
+            driver_name: driver_name.to_owned(),
+            endpoint: Endpoint::new(plugin_registration_dir, format!("{}-reg.sock", driver_name)),
+            dra_endpoint_path: dra_endpoint.path(),
+            supported_versions,
+        };
+
         Ok(KubeletPlugin {
-            reg_server: RegistrationServer {
-                driver_name: driver_name.to_owned(),
-                endpoint: Endpoint::new(
-                    plugin_registration_dir,
-                    format!("{}-reg.sock", driver_name),
-                ),
-                dra_endpoint_path: dra_endpoint.path(),
-            },
             driver_name: driver_name.to_owned(),
             grpc_verbosity: self.grpc_verbosity.unwrap_or(DEFAULT_GRPC_VERBOSITY),
             kube_client: kube_client.to_owned(),
             node_name: node_name.to_owned(),
             endpoint: dra_endpoint,
             cancel_token: None,
-            handles: Vec::default(),
+            handles: JoinSet::default(),
+            reg_server,
+            node_v1,
+            node_v1beta1,
         })
+    }
+}
+
+fn supported_versions(node_v1: bool, node_v1beta1: bool) -> Vec<String> {
+    let mut versions = Vec::new();
+    if node_v1 {
+        versions.push(short_service_name(drav1::dra_plugin_server::SERVICE_NAME));
+    }
+
+    if node_v1beta1 {
+        versions.push(short_service_name(
+            drav1beta1::dra_plugin_server::SERVICE_NAME,
+        ));
+    }
+
+    versions
+}
+
+fn short_service_name(svc: &str) -> String {
+    let mut parts = svc.rsplitn(3, '.');
+    let last = parts.next().unwrap_or("");
+    let second_last = parts.next().unwrap_or("");
+    format!("{second_last}.{last}")
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::v1_34::dra::v1 as drav1;
+    use crate::v1_34::dra::v1beta1 as drav1beta1;
+
+    #[test]
+    fn generates_correct_short_name() {
+        let v1_svc = super::short_service_name(drav1::dra_plugin_server::SERVICE_NAME);
+        assert_eq!(v1_svc, String::from("v1.DRAPlugin"));
+
+        let v1beta1_svc = super::short_service_name(drav1beta1::dra_plugin_server::SERVICE_NAME);
+        assert_eq!(v1beta1_svc, String::from("v1beta1.DRAPlugin"));
     }
 }

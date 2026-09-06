@@ -6,9 +6,8 @@ use crate::v1_34::dra::v1beta1 as drav1beta1;
 
 // DraServer implements the DraPlugin gRPC service.
 pub(super) struct DraServer {
-    pub(super) driver: Box<dyn DraDriver>,
+    pub(super) driver: Arc<dyn DraDriver>,
     pub(super) driver_name: String,
-    pub(super) grpc_verbosity: i8,
     pub(super) kube_client: kube::Client,
     pub(super) node_name: String,
 }
