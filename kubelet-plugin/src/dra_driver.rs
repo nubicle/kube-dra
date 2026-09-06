@@ -63,7 +63,7 @@ pub trait DraDriver: Send + Sync + 'static {
     /// This is a mandatory method because drivers should check for errors
     /// which won't get resolved by retrying and then fail or change the
     /// slices that they are trying to publish.
-    async fn handle_error(&self, err: Error, msg: &str);
+    async fn handle_error(&self, err: Error);
 }
 
 /// `Uid` is a type that holds unique ID values, including UUIDs.  Because we
@@ -148,4 +148,21 @@ pub struct Device {
 /// Drivers are expected to match on the variants they can act on, since
 /// some failures will not resolve by retrying.
 #[derive(Debug, thiserror::Error)]
-pub enum Error {}
+pub enum Error {
+    #[error("publishing ResourceSlice failed")]
+    ResourceSlicePublish(#[source] kube::Error),
+
+    #[error("DRA server failed")]
+    DraServer(#[source] tonic::transport::Error),
+
+    #[error("kubelet registration failed")]
+    Registration(#[source] tonic::transport::Error),
+}
+
+impl Error {
+    /// `is_recoverable` distinguishes recoverable errors from those which
+    /// are fatal and should cause the process to exit.
+    pub fn is_recoverable(&self) -> bool {
+        matches!(self, Error::ResourceSlicePublish(_))
+    }
+}
