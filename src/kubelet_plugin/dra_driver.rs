@@ -5,6 +5,8 @@ use async_trait::async_trait;
 
 use k8s_openapi::api::resource::v1 as resourceapi;
 
+use crate::Error;
+
 /// `DraDriver` is the trait that needs to be implemented by a DRA driver to
 /// use the `KubeletPlugin`. The `KubeletPlugin` then implements the gRPC
 /// interface expected by the kubelet by wrapping the `DraDriver` implementation.
@@ -58,7 +60,7 @@ pub trait DraDriver: Send + Sync + 'static {
     ) -> anyhow::Result<HashMap<Uid, anyhow::Result<()>>>;
 
     /// `handle_error` gets called for errors encountered in the background,
-    /// for example while publishing ResourceSlices.
+    /// for example while publishing ResourceSlices. See [`Error`].
     ///
     /// This is a mandatory method because drivers should check for errors
     /// which won't get resolved by retrying and then fail or change the
@@ -138,31 +140,4 @@ pub struct Device {
     /// Each ID must be of the form `<vendor ID>/<class>=<unique name>`.
     /// May be empty.
     pub cdi_device_ids: Vec<String>,
-}
-
-/// `Error` is what kube-dra reports to a driver through
-/// [`DraDriver::handle_error`]: failures from the library's own background
-/// work — publishing `ResourceSlice`s, managing sockets, registering with
-/// the kubelet — where there is no gRPC call to return them on.
-///
-/// Drivers are expected to match on the variants they can act on, since
-/// some failures will not resolve by retrying.
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("publishing ResourceSlice failed")]
-    ResourceSlicePublish(#[source] kube::Error),
-
-    #[error("DRA server failed")]
-    DraServer(#[source] tonic::transport::Error),
-
-    #[error("kubelet registration failed")]
-    Registration(#[source] tonic::transport::Error),
-}
-
-impl Error {
-    /// `is_recoverable` distinguishes recoverable errors from those which
-    /// are fatal and should cause the process to exit.
-    pub fn is_recoverable(&self) -> bool {
-        matches!(self, Error::ResourceSlicePublish(_))
-    }
 }

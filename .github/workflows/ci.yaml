@@ -15,7 +15,7 @@ jobs:
         with:
           version: "23.x"
       - name: Build
-        run: cargo build
+        run: cargo build --all-targets
       - name: Clippy
         run: |
           rustup component add clippy

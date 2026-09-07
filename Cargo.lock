@@ -124,10 +124,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
-name = "client"
-version = "0.0.1"
-
-[[package]]
 name = "core-foundation"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -713,13 +709,6 @@ dependencies = [
 name = "kube-dra"
 version = "0.0.1"
 dependencies = [
- "kubelet-plugin",
-]
-
-[[package]]
-name = "kubelet-plugin"
-version = "0.0.1"
-dependencies = [
  "anyhow",
  "async-trait",
  "k8s-openapi",
@@ -1108,10 +1097,6 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
-
-[[package]]
-name = "resource-slice"
-version = "0.0.1"
 
 [[package]]
 name = "ring"

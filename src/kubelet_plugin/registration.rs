@@ -2,8 +2,8 @@ use std::path::PathBuf;
 
 use tonic::{Request, Response};
 
-use crate::endpoint::Endpoint;
-use crate::v1_34::plugin_registration::v1 as regv1;
+use crate::kubelet_plugin::endpoint::Endpoint;
+use crate::kubelet_plugin::plugin_registration::v1 as regv1;
 
 /// DRAPlugin identifier for registered Dynamic Resource Allocation plugins.
 const PLUGIN_TYPE: &str = "DRAPlugin";

@@ -1,4 +1,9 @@
-pub(super) mod dra {
+//! Kubelet plugin framework for DRA drivers.
+//!
+//! Handles the plumbing — socket registration, gRPC lifecycle, and connection
+//! monitoring — so a driver only has to implement [`DraDriver`].
+
+mod dra {
     pub(super) mod v1 {
         include!(concat!(
             env!("OUT_DIR"),
@@ -20,7 +25,11 @@ mod plugin_registration {
     }
 }
 
-pub(super) mod kubelet_plugin;
+pub use self::dra_driver::*;
+pub use self::plugin::*;
 
+mod dra_driver;
 mod dra_server;
+mod endpoint;
+mod plugin;
 mod registration;

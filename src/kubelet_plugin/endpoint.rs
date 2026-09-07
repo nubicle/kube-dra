@@ -6,24 +6,24 @@ use tokio::net::UnixListener;
 // A listener for a Unix domain socket gets created at the path.
 // The listener always gets closed when shutting down.
 #[derive(Clone)]
-pub(crate) struct Endpoint {
+pub(super) struct Endpoint {
     dir: PathBuf,
     file: String,
 }
 
 impl Endpoint {
-    pub(crate) fn new(dir: impl Into<PathBuf>, file: impl Into<String>) -> Self {
+    pub(super) fn new(dir: impl Into<PathBuf>, file: impl Into<String>) -> Self {
         Endpoint {
             dir: dir.into(),
             file: file.into(),
         }
     }
 
-    pub(crate) fn path(&self) -> PathBuf {
+    pub(super) fn path(&self) -> PathBuf {
         self.dir.join(&self.file)
     }
 
-    pub(crate) async fn listen(&self) -> anyhow::Result<UnixListener> {
+    pub(super) async fn listen(&self) -> anyhow::Result<UnixListener> {
         let socket_path = self.path();
 
         // remove stale sockets

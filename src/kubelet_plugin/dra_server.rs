@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use crate::DraDriver;
-use crate::v1_34::dra::v1 as drav1;
-use crate::v1_34::dra::v1beta1 as drav1beta1;
+use crate::kubelet_plugin::DraDriver;
+use crate::kubelet_plugin::dra::v1 as drav1;
+use crate::kubelet_plugin::dra::v1beta1 as drav1beta1;
 
 // DraServer implements the DraPlugin gRPC service.
 pub(super) struct DraServer {

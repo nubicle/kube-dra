@@ -1,0 +1,13 @@
+# k8s-openapi requires exactly one v1_* feature, and library crates must not enable
+# one themselves — that choice belongs to the driver binary consuming kube-dra.
+#
+# Commands that do not build dev-dependencies (`cargo check`, `cargo doc`) therefore
+# have no version selected and fail. CI passes `--all-targets`, which does build them,
+# so this file is a local convenience rather than load-bearing. Unlike kube-rs we have
+# no in-workspace example to supply the feature, since the example driver lives in its
+# own repository.
+#
+# Keep in sync with `k8s_version` in the justfile and the dev-dependency in Cargo.toml.
+# Excluded from the published crate by the `include` list.
+[env]
+K8S_OPENAPI_ENABLED_VERSION = "1.34"

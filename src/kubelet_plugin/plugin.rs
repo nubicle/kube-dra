@@ -8,22 +8,23 @@ use tokio_stream::wrappers::UnixListenerStream;
 use tokio_util::sync::CancellationToken;
 use tonic::{service::Routes, transport};
 
-use super::dra_server::DraServer;
-use super::registration::RegistrationServer;
-use crate::dra_driver::DraDriver;
-use crate::endpoint::Endpoint;
-use crate::v1_34::dra::v1 as drav1;
-use crate::v1_34::dra::v1beta1 as drav1beta1;
-use crate::v1_34::plugin_registration::v1 as regv1;
+use crate::Error;
+use crate::kubelet_plugin::dra::v1 as drav1;
+use crate::kubelet_plugin::dra::v1beta1 as drav1beta1;
+use crate::kubelet_plugin::dra_driver::DraDriver;
+use crate::kubelet_plugin::dra_server::DraServer;
+use crate::kubelet_plugin::endpoint::Endpoint;
+use crate::kubelet_plugin::plugin_registration::v1 as regv1;
+use crate::kubelet_plugin::registration::RegistrationServer;
 
-/// KUBELET_PLUGINS_DIR is the default directory for `PluginDataDirectoryPath`.
+// KUBELET_PLUGINS_DIR is the default directory for `PluginDataDirectoryPath`.
 const KUBELET_PLUGINS_DIR: &str = "/var/lib/kubelet/plugins";
 
-/// KUBELET_REGISTRY_DIR is the default for `RegistrarDirectoryPath`.
+// KUBELET_REGISTRY_DIR is the default for `RegistrarDirectoryPath`.
 const KUBELET_REGISTRY_DIR: &str = "/var/lib/kubelet/plugins_registry";
 
-/// DEFAULT_GRPC_VERBOSITY logs each gRPC call and its response.
-/// A negative value disables logging.
+// DEFAULT_GRPC_VERBOSITY logs each gRPC call and its response.
+// A negative value disables logging.
 const DEFAULT_GRPC_VERBOSITY: i8 = 6;
 
 /// `KubeletPlugin` is the node-local component the kubelet talks to: it owns the
@@ -87,7 +88,7 @@ impl KubeletPlugin {
             token.clone(),
             dra_routes.routes(),
             move |e| async move {
-                dc.handle_error(crate::Error::DraServer(e)).await;
+                dc.handle_error(Error::DraServer(e)).await;
             },
         ));
 
@@ -101,7 +102,7 @@ impl KubeletPlugin {
             token.clone(),
             reg_routes,
             move |e| async move {
-                driver.handle_error(crate::Error::Registration(e)).await;
+                driver.handle_error(Error::Registration(e)).await;
             },
         ));
 
@@ -342,8 +343,8 @@ fn short_service_name(svc: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::v1_34::dra::v1 as drav1;
-    use crate::v1_34::dra::v1beta1 as drav1beta1;
+    use crate::kubelet_plugin::dra::v1 as drav1;
+    use crate::kubelet_plugin::dra::v1beta1 as drav1beta1;
 
     #[test]
     fn generates_correct_short_name() {
