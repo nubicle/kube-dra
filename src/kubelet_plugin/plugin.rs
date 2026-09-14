@@ -204,8 +204,8 @@ impl KubeletPluginBuilder {
     //
     /// This path must be the same inside and outside of the driver's container.
     /// The directory must exist.
-    pub fn plugin_data_dir(&mut self, dir: &path::Path) -> &mut Self {
-        self.plugin_data_dir = Some(dir.to_path_buf());
+    pub fn plugin_data_dir(&mut self, dir: impl Into<PathBuf>) -> &mut Self {
+        self.plugin_data_dir = Some(dir.into());
         self
     }
 
