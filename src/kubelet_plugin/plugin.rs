@@ -289,7 +289,10 @@ impl KubeletPluginBuilder {
         let plugin_data_dir = self
             .plugin_data_dir
             .clone()
-            .unwrap_or_else(|| PathBuf::from(format!("{KUBELET_PLUGINS_DIR}/{}", driver_name)));
+            .unwrap_or(PathBuf::from(format!(
+                "{KUBELET_PLUGINS_DIR}/{}",
+                driver_name
+            )));
 
         let plugin_registration_dir = self
             .plugin_registration_dir

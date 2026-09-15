@@ -17,9 +17,11 @@ k8s_openapi::k8s_if_le_1_33! {
 
 mod error;
 mod kubelet_plugin;
+mod resource_slice;
 
 pub use self::error::Error;
 pub use self::kubelet_plugin::*;
+pub use self::resource_slice::*;
 pub use async_trait::async_trait;
 
 /// The `k8s-openapi` version kube-dra was built against.
